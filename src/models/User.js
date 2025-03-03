@@ -1,24 +1,25 @@
-// models/User.js
-const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
+const mongoose = require("mongoose");
 
-// Định nghĩa schema cho người dùng
 const userSchema = new mongoose.Schema({
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
+  idUser: { type: Number, unique: true }, // ID tự động tăng
+  fullName: { type: String, default: "" }, // Không bắt buộc
+  username: { type: String, required: true, unique: true },
+  email: { type: String, required: true },
+  phone: { type: String, default: "" }, // Không bắt buộc
+  password: { type: String, required: true }, // Không hash lại ở đây
+  avatar: { type: String, default: null }, // Ảnh đại diện, cập nhật sau
+  isVerified: { type: Boolean, default: false }, // Xác thực tài khoản
+  otpCode: { type: String, default: null }, // 🔥 Mã OTP gửi qua email
+  otpExpires: { type: Date, default: null }, // 🔥 Thời gian hết hạn OTP
 });
 
-// Mã hóa mật khẩu trước khi lưu vào MongoDB
-userSchema.pre('save', async function(next) {
-  if (this.isModified('password')) {
-    this.password = await bcrypt.hash(this.password, 10);
+// Middleware tự động tăng idUser
+userSchema.pre("save", async function (next) {
+  if (!this.idUser) {
+    const lastUser = await mongoose.model("User").findOne().sort({ idUser: -1 }).lean();
+    this.idUser = lastUser ? lastUser.idUser + 1 : 10001;
   }
   next();
 });
 
-// Kiểm tra mật khẩu người dùng
-userSchema.methods.comparePassword = async function(password) {
-  return bcrypt.compare(password, this.password);
-};
-
-module.exports = mongoose.model('User', userSchema);
+module.exports = mongoose.model("User", userSchema);
