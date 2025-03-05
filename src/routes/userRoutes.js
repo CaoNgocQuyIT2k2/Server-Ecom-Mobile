@@ -1,13 +1,15 @@
 const express = require("express");
 const router = express.Router();
 const { verifyToken } = require("../middlewares/authMiddleware");
+const { editProfile, getProfile, uploadAvatar, editPassword, forgotPassword, verifyPassOTP, resetPassword } = require("../controllers/userController");
+const upload = require("../middlewares/multerConfig");
 
-router.get("/profile", verifyToken, async (req, res) => {
-  try {
-    res.status(200).json({ message: "Lấy thông tin thành công", user: req.user });
-  } catch (error) {
-    res.status(500).json({ message: "Lỗi server", error });
-  }
-});
+router.get("/getProfile", getProfile);
+router.put("/updateProfile", editProfile);
+router.post("/uploadAvatar", upload.single("avatar"), uploadAvatar);
+router.put("/updatePassword", editPassword);
+router.post("/forgotPassword", forgotPassword); // Gửi OTP
+router.post("/verifyPassOtp", verifyPassOTP); // Xác thực OTP
+router.post("/resetPassword", resetPassword); // Đặt lại mật khẩu
 
 module.exports = router;
