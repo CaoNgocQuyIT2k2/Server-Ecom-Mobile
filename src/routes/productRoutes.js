@@ -1,5 +1,5 @@
 const express = require('express');
-const { getSaleProducts, getProducts, getCategories, getTop10Sold } = require('../controllers/productController');
+const { getSaleProducts, getProducts, getCategories, getTop10Sold, searchProducts, getProductRating } = require('../controllers/productController');
 
 const router = express.Router();
 
@@ -7,5 +7,9 @@ router.get('/saleProducts', getSaleProducts);
 router.get('/products', getProducts);
 router.get('/categories', getCategories);
 router.get('/top10Sold', getTop10Sold);
+router.get('/searchProducts', searchProducts);
+// Route lấy số sao trung bình của sản phẩm
+router.get("/:id/rating", getProductRating);
+
 
 module.exports = router;

@@ -47,3 +47,51 @@ exports.getTop10Sold = async (req, res) => {
       res.status(500).json({ message: 'Lỗi khi lấy sản phẩm bán chạy nhất', error });
     }
   };
+
+// API tìm kiếm sản phẩm theo title hoặc category
+exports.searchProducts = async (req, res) => {
+    try {
+        const { key } = req.query;
+        if (!key) {
+            return res.status(400).json({ message: "Vui lòng nhập từ khóa tìm kiếm" });
+        }
+        // Tìm kiếm trong title, category, description, và brand
+        const products = await Product.find({
+            $or: [
+                { title: { $regex: key, $options: "i" } },
+                { "category.name": { $regex: key, $options: "i" } },
+                { description: { $regex: key, $options: "i" } },
+            ]
+        });
+
+        res.status(200).json(products);
+    } catch (error) {
+        res.status(500).json({ message: "Lỗi khi tìm kiếm sản phẩm", error });
+    }
+};
+
+//  API lấy số sao trung bình của một sản phẩm
+exports.getProductRating = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Tìm sản phẩm theo id
+        const product = await Product.findOne({ id: parseInt(id) }).lean();
+
+        if (!product) {
+            return res.status(404).json({ message: "Sản phẩm không tồn tại" });
+        }
+
+        // Trả về số sao trung bình đã lưu trong DB
+        res.status(200).json({ 
+            productId: product.id,
+            title: product.title,
+            averageRating: product.ratings?.average || 0,  // ✅ Lấy trực tiếp từ DB
+            totalRatings: product.ratings?.totalRatings || 0
+        });
+
+    } catch (error) {
+        console.error("🔥 Error fetching rating:", error);
+        res.status(500).json({ message: "Lỗi khi lấy đánh giá sản phẩm", error });
+    }
+};
