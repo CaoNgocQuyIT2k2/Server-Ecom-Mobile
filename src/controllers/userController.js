@@ -16,7 +16,6 @@ exports.getProfile = async (req, res) => {
 
     const user = await User.findOne({ idUser: decoded.idUser }).select("fullName email phone password avatar");
     if (!user) return res.status(404).json({ message: "Không tìm thấy user" });
-    console.log(user);
     res.status(200).json({
       message: "Lấy thông tin thành công",
       user: {

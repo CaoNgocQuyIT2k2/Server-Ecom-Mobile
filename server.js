@@ -5,7 +5,12 @@ const bodyParser = require('body-parser');
 const authRoutes = require('./src/routes/auth');
 const productRoutes = require('./src/routes/productRoutes');
 const userRoutes = require('./src/routes/userRoutes');
+const addressRoutes = require("./src/routes/address");
+const orderRoutes = require("./src/routes/order");
+const requestCancelOrderRoutes = require("./src/routes/requestcancelorder");
+
 require('dotenv').config();
+// require("./orderJob");
 
 const app = express();
 
@@ -20,7 +25,9 @@ mongoose
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use("/api/user", userRoutes);
-
+app.use("/api/address", addressRoutes);
+app.use("/api/order", orderRoutes);
+app.use("/api/requestcancelorder", requestCancelOrderRoutes);
 
 const PORT = process.env.PORT || 5000;
 

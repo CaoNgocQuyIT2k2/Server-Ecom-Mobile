@@ -95,3 +95,22 @@ exports.getProductRating = async (req, res) => {
         res.status(500).json({ message: "Lỗi khi lấy đánh giá sản phẩm", error });
     }
 };
+
+
+// API lấy thông tin sản phẩm theo ID
+exports.getProductById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // Tìm sản phẩm theo id
+        const product = await Product.findOne({ id });
+
+        if (!product) {
+            return res.status(404).json({ message: "Không tìm thấy sản phẩm" });
+        }
+
+        res.status(200).json(product);
+    } catch (error) {
+        res.status(500).json({ message: "Lỗi khi lấy sản phẩm", error });
+    }
+};
