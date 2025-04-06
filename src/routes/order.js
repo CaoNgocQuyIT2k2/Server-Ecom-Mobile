@@ -13,11 +13,12 @@ router.get("/:idUser", verifyToken, getUserOrders);
 router.get("/:idUser/status/:status", verifyToken, getUserOrdersByStatus);
 
 
-router.get("/details/:idOrder", verifyToken, getOrderDetails);
+router.get("/details/:orderId", verifyToken, getOrderDetails);
 
 router.put("/status/:orderId", verifyToken, updateOrderStatus);
 
 router.put("/cancel/:idOrder", verifyToken, cancelOrder);
+
 
 
 

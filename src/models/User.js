@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { Schema } = mongoose;
 
 const userSchema = new mongoose.Schema({
   idUser: { type: Number, unique: true }, // ID tự động tăng
@@ -11,6 +12,8 @@ const userSchema = new mongoose.Schema({
   isVerified: { type: Boolean, default: false }, // Xác thực tài khoản
   otpCode: { type: String, default: null }, // 🔥 Mã OTP gửi qua email
   otpExpires: { type: Date, default: null }, // 🔥 Thời gian hết hạn OTP
+  rewardPoints: { type: mongoose.Schema.Types.Decimal128, default: 0 }
+
 });
 
 // Middleware tự động tăng idUser

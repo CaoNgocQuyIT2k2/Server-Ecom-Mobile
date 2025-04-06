@@ -20,7 +20,7 @@ exports.loginUser = async (req, res) => {
 
     // Tạo JWT Token có thời hạn 30 ngày
     const token = jwt.sign(
-      { idUser: user.idUser, email: user.email, username: user.username },
+      { idUser: user.idUser, email: user.email, username: user.username,rewardPoints:user.rewardPoints },
       process.env.JWT_SECRET || "your_secret_key",
       { expiresIn: "30d" } // ⬅️ Set thời gian hết hạn 30 ngày
     );
@@ -34,6 +34,7 @@ exports.loginUser = async (req, res) => {
       avatar: user.avatar,
       isVerified: user.isVerified,
       token, // Gửi token về client
+      rewardPoints: user.rewardPoints,
       message: "Đăng nhập thành công!",
     });
   } catch (error) {

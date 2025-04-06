@@ -3,7 +3,6 @@ const jwt = require("jsonwebtoken");
 exports.verifyToken = (req, res, next) => {
   try {
     const token = req.header("Authorization")?.replace("Bearer ", "");
-    console.log("🔑 Token nhận được:", token); // In token để kiểm tra
 
     if (!token) {
       console.log("🚫 Không có token!");
@@ -11,7 +10,6 @@ exports.verifyToken = (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || "your_secret_key");
-    console.log("✅ Token hợp lệ:", decoded);
 
     req.user = decoded; // Thêm user vào request
     next();
