@@ -1,5 +1,5 @@
 const express = require("express");
-const { createOrder, getUserOrders, getOrderDetails, updateOrderStatus, cancelOrder, getUserOrdersByStatus } = require("../controllers/orderController");
+const { createOrder, getUserOrders, getOrderDetails, updateOrderStatus, cancelOrder, getUserOrdersByStatus, getUserOrderStats, getUserOrderSummary } = require("../controllers/orderController");
 const { verifyToken } = require("../middlewares/authMiddleware");
 const router = express.Router();
 
@@ -18,6 +18,11 @@ router.get("/details/:orderId", verifyToken, getOrderDetails);
 router.put("/status/:orderId", verifyToken, updateOrderStatus);
 
 router.put("/cancel/:idOrder", verifyToken, cancelOrder);
+
+router.get("/stats/:userId", verifyToken, getUserOrderStats);
+
+router.get("/summary/:userId", verifyToken, getUserOrderSummary);
+
 
 
 

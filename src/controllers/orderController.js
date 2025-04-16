@@ -8,6 +8,11 @@ const UserCoupons = require("../models/UserCoupons");  // Import UserCoupons mod
 // 📌 API: Create Order
 const Coupon = require("../models/Coupon"); // Import model Coupon
 const Product = require("../models/Product");
+const { getTimeRange } = require("../utils/time");
+const { groupByTimeUnit } = require("../utils/groupBy");
+const { pushNotificationToUser } = require('../../socket'); // hoặc '../socket' tùy vị trí thật sự
+const Notification = require("../models/Notification");
+
 
 // 📌 API: Create Order + Generate Discount Codeconst Order = require("../models/Order");
 exports.createOrder = async (req, res) => {
@@ -208,77 +213,107 @@ exports.getOrderDetails = async (req, res) => {
 // API: Update Order Status to Delivered
 exports.updateOrderStatus = async (req, res) => {
     try {
-        let { orderId } = req.params;
-        const { status } = req.body;
-
-        // Kiểm tra ID đơn hàng hợp lệ
-        if (!mongoose.Types.ObjectId.isValid(orderId)) {
-            return res.status(400).json({ success: false, message: "Invalid order ID" });
+      let { orderId } = req.params;
+      const { status } = req.body;
+  
+      if (!mongoose.Types.ObjectId.isValid(orderId)) {
+        return res.status(400).json({ success: false, message: "Invalid order ID" });
+      }
+  
+      const validStatuses = ["Confirmed", "Preparing", "Shipping", "Delivered", "Cancelled"];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ success: false, message: "Invalid status" });
+      }
+  
+      const order = await Order.findByIdAndUpdate(orderId, { status }, { new: true });
+      if (!order) {
+        return res.status(404).json({ success: false, message: "Order not found" });
+      }
+  
+      console.log("Order status updated to:", status);
+  
+      // Nếu đã giao hàng, cập nhật số lượng đã bán
+      if (status === "Delivered") {
+        for (const product of order.products) {
+          const productId = product.productId;
+          const quantitySold = product.quantity;
+  
+          await Product.findOneAndUpdate(
+            { _id: productId },
+            { $inc: { soldCount: quantitySold } },
+            { new: true }
+          );
         }
-
-        // Kiểm tra trạng thái hợp lệ
-        const validStatuses = ["Confirmed", "Preparing", "Shipping", "Delivered", "Cancelled"];
-        if (!validStatuses.includes(status)) {
-            return res.status(400).json({ success: false, message: "Invalid status" });
-        }
-
-        // Cập nhật trạng thái đơn hàng
-        const order = await Order.findByIdAndUpdate(orderId, { status }, { new: true });
-
-        if (!order) {
-            return res.status(404).json({ success: false, message: "Order not found" });
-        }
-
-        console.log("Order status updated to:", status);
-
-        // Kiểm tra nếu trạng thái là "Delivered" để cập nhật soldCount
-        if (status === "Delivered") {
-            console.log("Order status is 'Delivered'. Now updating soldCount...");
-            console.log("Total products in order:", order.products.length); // Log số lượng sản phẩm
-
-            for (const product of order.products) {
-                const productId = product.productId;
-                const quantitySold = product.quantity;
-
-                console.log(`Processing product ID: ${productId} - Quantity: ${quantitySold}`);
-
-                const productInDB = await Product.findOne({ _id: productId });
-
-                if (!productInDB) {
-                    console.log(`⚠️ Product with ID ${productId} not found. Skipping...`);
-                    continue;
-                }
-
-                const updatedProduct = await Product.findOneAndUpdate(
-                    { _id: productId },
-                    { $inc: { soldCount: quantitySold } },
-                    { new: true }
-                );
-
-                if (updatedProduct) {
-                    console.log(`✅ Updated soldCount for product ${updatedProduct.title}: ${updatedProduct.soldCount}`);
-                } else {
-                    console.log(`❌ Failed to update soldCount for product ${productId}`);
-                }
-            }
-        }
-
-
-        res.status(200).json({
-            success: true,
-            message: "Order status updated successfully",
-            data: order,
-        });
-
+      }
+  
+      // Map status sang statusText
+      const statusTextMap = {
+        Confirmed: "Your order has been confirmed",
+        Preparing: "Your order is being prepared",
+        Shipping: "Your order has been shipped",
+        Delivered: "Your order has been completed",
+        Cancelled: "Your order has been cancelled",
+      };
+  
+      const statusText = statusTextMap[status];
+  
+      // Tạo thông báo
+      const notification = {
+        idUser: order.idUser,
+        type: 'order',
+        title: `Order ${orderId}`,
+        content: "",
+        image: order.products.length > 0 ? order.products[0].image : null,
+        orderId: order._id.toString(),
+        status: order.status,
+        statusText, // Thêm dòng này vào
+        isRead: false,
+        _id: new mongoose.Types.ObjectId().toString(),
+        createdAt: new Date(),
+      };
+  
+      // Thiết lập nội dung của thông báo dựa trên trạng thái đơn hàng
+      switch (status) {
+        case "Confirmed":
+          notification.content = `Your order with code ${order._id} has been confirmed. Thank you for placing your order.`;
+          break;
+        case "Preparing":
+          notification.content = `Your order with code ${order._id} is being prepared for shipping soon.`;
+          break;
+        case "Shipping":
+          notification.content = `Your order with code ${order._id} has been shipped to your delivery point.`;
+          break;
+        case "Delivered":
+          notification.content = `Your order with code ${order._id} has been completed. Please rate the products to earn 0.02 reward points and help other customers understand the product better!`;
+          break;
+        case "Cancelled":
+          notification.content = `Your order with code ${order._id} has been canceled by the system. We apologize for any inconvenience caused.`;
+          break;
+      }
+  
+      // Lưu thông báo vào MongoDB
+      const createdNotification = await Notification.create(notification); // Sử dụng await để đợi lưu thông báo
+  
+      // Gửi thông báo qua socket
+      pushNotificationToUser(order.idUser.toString(), createdNotification);
+  
+      res.status(200).json({
+        success: true,
+        message: "Order status updated successfully",
+        data: order,
+      });
+  
     } catch (error) {
-        console.error("❌ Error updating order status:", error);
-        res.status(500).json({
-            success: false,
-            message: "Error updating order status",
-            error: error.message,
-        });
+      console.error("❌ Error updating order status:", error);
+      res.status(500).json({
+        success: false,
+        message: "Error updating order status",
+        error: error.message,
+      });
     }
-};
+  };
+  
+  
 
 
 
@@ -345,4 +380,124 @@ exports.getUserOrdersByStatus = async (req, res) => {
     }
 };
 
+
+// 📌 API: Get Order Stats for a User
+exports.getUserOrderStats = async (req, res) => {
+    try {
+        const { userId } = req.params;
+
+        const orders = await Order.find({ idUser: userId });
+
+        if (!orders.length) {
+            return res.status(200).json({
+                success: true,
+                message: "User has no orders.",
+                stats: {
+                    totalOrders: 0,
+                    statusBreakdown: {},
+                    totalRevenue: 0
+                }
+            });
+        }
+
+        const stats = {
+            totalOrders: orders.length,
+            totalRevenue: 0,
+            statusBreakdown: {}, // e.g. { "Delivered": 3, "New Order": 2, ... }
+            totalByStatus: {}    // e.g. { "Delivered": 150, "Cancelled": 80, ... }
+        };
+
+        orders.forEach(order => {
+            const status = order.status;
+
+            // Đếm số đơn theo từng trạng thái
+            if (!stats.statusBreakdown[status]) {
+                stats.statusBreakdown[status] = 0;
+                stats.totalByStatus[status] = 0;
+            }
+            stats.statusBreakdown[status]++;
+            stats.totalByStatus[status] += order.totalAmount;
+
+            // Cộng vào tổng doanh thu nếu đơn hàng chưa bị hủy
+            if (status !== "Cancelled") {
+                stats.totalRevenue += order.totalAmount;
+            }
+        });
+
+        res.status(200).json({
+            success: true,
+            message: "Successfully fetched order statistics",
+            stats
+        });
+    } catch (error) {
+        console.error("❌ Error fetching order statistics:", error);
+        res.status(500).json({ success: false, message: "Server error", error: error.message });
+    }
+};
+
+
+
+exports.getUserOrderSummary = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { range = 'all', groupBy } = req.query;
+
+    if (!userId) {
+      return res.status(400).json({ success: false, message: 'Missing userId' });
+    }
+
+    const filter = { idUser: parseInt(userId) };
+    const timeRange = getTimeRange(range);
+    if (timeRange.$gte && timeRange.$lte) {
+      filter.createdAt = timeRange;
+    }
+
+    const orders = await Order.find(filter);
+
+    const stats = {};
+    let totalAmount = 0, totalDiscount = 0, totalRewardUsed = 0;
+
+    orders.forEach(order => {
+      const status = order.status;
+      stats[status] = stats[status] || {
+        totalOrders: 0, totalAmount: 0, totalDiscount: 0, totalRewardUsed: 0
+      };
+      stats[status].totalOrders += 1;
+      stats[status].totalAmount += order.totalAmount;
+      stats[status].totalDiscount += order.discountAmount || 0;
+      stats[status].totalRewardUsed += order.usedRewardPoints || 0;
+
+      totalAmount += order.totalAmount;
+      totalDiscount += order.discountAmount || 0;
+      totalRewardUsed += order.usedRewardPoints || 0;
+    });
+
+    const cancelRate = ((stats['Cancelled']?.totalOrders || 0) / orders.length) * 100;
+    const successRate = ((stats['Delivered']?.totalOrders || 0) / orders.length) * 100;
+
+    // Nhóm theo tuần / tháng / năm
+    let groupedByTime = {};
+    if (groupBy) {
+      groupedByTime = groupByTimeUnit(orders, groupBy);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Order summary (${range})`,
+      range,
+      groupBy: groupBy || null,
+      statisticsByStatus: stats,
+      grouped: groupedByTime,
+      totalOrders: orders.length,
+      totalAmount,
+      totalDiscount,
+      totalRewardUsed,
+      cancelRate: cancelRate.toFixed(2),
+      successRate: successRate.toFixed(2),
+    });
+  } catch (error) {
+    console.error("Order Summary Error:", error);
+    res.status(500).json({ success: false, message: "Server error", error: error.message });
+  }
+};
 

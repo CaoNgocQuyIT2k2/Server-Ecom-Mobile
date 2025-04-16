@@ -14,11 +14,16 @@ const viewedProductRoutes = require("./src/routes/viewedProductRoutes");
 const couponRoutes = require("./src/routes/couponRoutes");
 const recentlyViewedRoutes = require('./src/routes/recentlyViewedRoutes');
 const rewardPointsRoutes = require('./src/routes/rewardPointsRoutes');
+const notificationRoutes = require('./src/routes/notificationRoutes');
+const { initSocket } = require('./socket');
 
 require('dotenv').config();
 // require("./orderJob");
 
 const app = express();
+
+// Khởi tạo HTTP server
+const server = require('http').createServer(app); // Thêm dòng này để tạo server
 
 app.use(cors());
 app.use(bodyParser.json());
@@ -41,7 +46,11 @@ app.use("/api/coupon", couponRoutes);
 
 app.use('/api/recentlyViewed', recentlyViewedRoutes);
 app.use('/api/rewardPoints', rewardPointsRoutes);
+app.use('/api/notifications', notificationRoutes);
 
+// Khởi tạo socket và truyền server vào
+initSocket(server);
+
+// Lắng nghe trên cổng
 const PORT = process.env.PORT || 5000;
-
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
